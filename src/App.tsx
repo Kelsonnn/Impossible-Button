@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Coins, Sparkles, CheckCircle, Send, SkipForward, Lock, LogIn, LogOut, Trash2, Calendar, User as UserIcon, RefreshCw } from 'lucide-react';
@@ -44,9 +45,10 @@ export default function App() {
   useEffect(() => {
     // Check if previously authenticated in this session
     const isAuth = sessionStorage.getItem('isAdminAuth') === 'true';
-    if (isAuth) {
+    const savedPass = sessionStorage.getItem('adminPass');
+    if (isAuth && savedPass) {
       setIsAdminAuthenticated(true);
-      loadSubmissions();
+      loadSubmissions(savedPass);
     }
   }, []);
 
@@ -188,9 +190,12 @@ export default function App() {
   const handleAdminLogin = () => {
     // If already authenticated, just load submissions
     if (isAdminAuthenticated) {
-      setPhase('ADMIN');
-      loadSubmissions();
-      return;
+      const savedPass = sessionStorage.getItem('adminPass');
+      if (savedPass) {
+        setPhase('ADMIN');
+        loadSubmissions(savedPass);
+        return;
+      }
     }
 
     setShowPasswordInput(true);
@@ -203,24 +208,27 @@ export default function App() {
     if (adminPassword === correctPassword) {
       setIsAdminAuthenticated(true);
       sessionStorage.setItem('isAdminAuth', 'true');
+      sessionStorage.setItem('adminPass', adminPassword);
       setShowPasswordInput(false);
+      const pass = adminPassword;
       setAdminPassword('');
       setPhase('ADMIN');
-      loadSubmissions();
+      loadSubmissions(pass);
     } else {
       alert("Incorrect password!");
       setAdminPassword('');
     }
   };
 
-  const loadSubmissions = async () => {
+  const loadSubmissions = async (password: string) => {
     setLoadingAdmin(true);
     try {
-      const data = await fetchSubmissions();
+      const data = await fetchSubmissions(password);
       setSubmissions(data);
       setPhase('ADMIN');
     } catch (err) {
       console.error(err);
+      alert("Failed to load submissions. Please try again.");
     } finally {
       setLoadingAdmin(false);
     }
@@ -654,10 +662,16 @@ export default function App() {
                   Submission Dashboard
                 </h1>
                 <button 
-                  onClick={() => setPhase('NAME_ENTRY')}
-                  className="px-4 py-2 bg-white rounded-xl font-bold text-sm shadow-sm hover:bg-neutral-50 transition-colors"
+                  onClick={() => {
+                    setIsAdminAuthenticated(false);
+                    sessionStorage.removeItem('isAdminAuth');
+                    sessionStorage.removeItem('adminPass');
+                    setPhase('PRE_START');
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-neutral-100 text-neutral-600 rounded-2xl font-bold hover:bg-neutral-200 transition-colors"
                 >
-                  Exit Dashboard
+                  <LogOut size={18} />
+                  Logout
                 </button>
               </div>
 

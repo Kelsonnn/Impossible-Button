@@ -36,14 +36,27 @@ export async function submitNote(userName: string, note: string, isMessi: boolea
   }
 }
 
-export async function fetchSubmissions(): Promise<Submission[]> {
+export async function fetchSubmissions(password: string): Promise<Submission[]> {
   try {
-    const q = query(collection(db, 'submissions'), orderBy('timestamp', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Submission));
+    const response = await fetch('/api/admin/submissions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ password }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch submissions');
+    }
+
+    const data = await response.json();
+    return data.map((sub: any) => ({
+      ...sub,
+      timestamp: sub.timestamp ? {
+        toDate: () => new Date(sub.timestamp.seconds * 1000 + sub.timestamp.nanoseconds / 1000000)
+      } : null
+    }));
   } catch (error) {
     console.error('Error fetching submissions:', error);
     throw error;
