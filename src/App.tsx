@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Coins, Sparkles, CheckCircle, Send, SkipForward, Lock, LogIn, LogOut, Trash2, Calendar, User as UserIcon, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, fetchSubmissions, Submission } from './lib/firebase';
+import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, fetchSubmissionsClient, Submission } from './lib/firebase';
 
 // --- Types ---
 type Phase = 'PRE_START' | 'NAME_ENTRY' | 'PRANK' | 'SUCCESS' | 'FINAL' | 'SECRET_CHALLENGE' | 'MESSI_SUCCESS' | 'ADMIN';
@@ -176,37 +176,34 @@ export default function App() {
       sessionStorage.setItem('isAdminAuth', 'true');
       sessionStorage.setItem('adminPass', trimmedInput);
       setShowPasswordInput(false);
-      const pass = trimmedInput;
       setAdminPassword('');
-      setPhase('ADMIN');
-      loadSubmissions(pass);
+      loadSubmissions();
     } else {
       alert("Incorrect password!");
       setAdminPassword('');
     }
   };
 
-  const loadSubmissions = async (password: string) => {
+  const loadSubmissions = async () => {
     setLoadingAdmin(true);
     try {
-      const data = await fetchSubmissions(password);
+      // Ensure user is signed in with Google for Firestore access
+      if (!auth.currentUser) {
+        await signInWithPopup(auth, googleProvider);
+      }
+      
+      const data = await fetchSubmissionsClient();
       setSubmissions(data);
       setPhase('ADMIN');
     } catch (err: any) {
       console.error('Admin Load Error:', err);
-      // Try to extract a more helpful message from the error
-      let errorMsg = "Failed to load submissions.";
-      try {
-        if (err.message && err.message.startsWith('{')) {
-          const parsed = JSON.parse(err.message);
-          if (parsed.message) errorMsg += `\n\nServer Error: ${parsed.message}`;
-        } else if (err.message) {
-          errorMsg += `\n\n${err.message}`;
-        }
-      } catch (e) {
-        // Fallback to generic message
+      let msg = "Failed to load submissions.";
+      if (err.code === 'permission-denied') {
+        msg += `\n\nAccess Denied: You are logged in as ${auth.currentUser?.email}, which is not the admin account. Please sign out and log in with kelsonong2009@gmail.com.`;
+      } else {
+        msg += `\n\nError: ${err.message || String(err)}`;
       }
-      alert(errorMsg + "\n\nPlease try again.");
+      alert(msg);
     } finally {
       setLoadingAdmin(false);
     }
@@ -617,18 +614,33 @@ export default function App() {
                   <Lock className="text-neutral-400" />
                   Submission Dashboard
                 </h1>
-                <button 
-                  onClick={() => {
-                    setIsAdminAuthenticated(false);
-                    sessionStorage.removeItem('isAdminAuth');
-                    sessionStorage.removeItem('adminPass');
-                    setPhase('PRE_START');
-                  }}
-                  className="flex items-center gap-2 px-6 py-3 bg-neutral-100 text-neutral-600 rounded-2xl font-bold hover:bg-neutral-200 transition-colors"
-                >
-                  <LogOut size={18} />
-                  Logout
-                </button>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={async () => {
+                      await auth.signOut();
+                      setIsAdminAuthenticated(false);
+                      sessionStorage.removeItem('isAdminAuth');
+                      sessionStorage.removeItem('adminPass');
+                      setPhase('PRE_START');
+                    }}
+                    className="flex items-center gap-2 px-6 py-3 bg-neutral-100 text-neutral-600 rounded-2xl font-bold hover:bg-neutral-200 transition-colors"
+                  >
+                    <LogOut size={18} />
+                    Sign Out
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsAdminAuthenticated(false);
+                      sessionStorage.removeItem('isAdminAuth');
+                      sessionStorage.removeItem('adminPass');
+                      setPhase('PRE_START');
+                    }}
+                    className="flex items-center gap-2 px-6 py-3 bg-neutral-100 text-neutral-600 rounded-2xl font-bold hover:bg-neutral-200 transition-colors"
+                  >
+                    <LogOut size={18} />
+                    Logout
+                  </button>
+                </div>
               </div>
 
               {loadingAdmin ? (

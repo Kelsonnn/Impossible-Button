@@ -36,30 +36,16 @@ export async function submitNote(userName: string, note: string, isMessi: boolea
   }
 }
 
-export async function fetchSubmissions(password: string): Promise<Submission[]> {
+export async function fetchSubmissionsClient(): Promise<Submission[]> {
   try {
-    const response = await fetch('/api/admin/submissions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ password }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(JSON.stringify(errorData));
-    }
-
-    const data = await response.json();
-    return data.map((sub: any) => ({
-      ...sub,
-      timestamp: sub.timestamp ? {
-        toDate: () => new Date(sub.timestamp.seconds * 1000 + sub.timestamp.nanoseconds / 1000000)
-      } : null
-    }));
+    const q = query(collection(db, 'submissions'), orderBy('timestamp', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+    } as Submission));
   } catch (error) {
-    console.error('Error fetching submissions:', error);
+    console.error('Error fetching submissions client-side:', error);
     throw error;
   }
 }
