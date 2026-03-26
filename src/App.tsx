@@ -31,6 +31,7 @@ export default function App() {
   const [isMessi, setIsMessi] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
   const [adminClickCount, setAdminClickCount] = useState(0);
+  const [showAdminLoginPrompt, setShowAdminLoginPrompt] = useState(false);
   const adminTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Admin State
@@ -159,7 +160,7 @@ export default function App() {
   };
 
   const handleAdminClick = () => {
-    if (loadingAdmin) return;
+    if (loadingAdmin || showAdminLoginPrompt) return;
 
     if (adminTimerRef.current) {
       clearTimeout(adminTimerRef.current);
@@ -170,7 +171,9 @@ export default function App() {
 
     if (newCount >= 5) {
       setAdminClickCount(0);
-      handleAdminLogin();
+      setShowAdminLoginPrompt(true);
+      // Automatically hide prompt after 5 seconds if not clicked
+      setTimeout(() => setShowAdminLoginPrompt(false), 5000);
     } else {
       adminTimerRef.current = setTimeout(() => {
         setAdminClickCount(0);
@@ -186,6 +189,7 @@ export default function App() {
     }
 
     setLoadingAdmin(true);
+    setShowAdminLoginPrompt(false);
     try {
       const result = await signInWithPopup(auth, googleProvider);
       if (result.user.email === ADMIN_EMAIL) {
@@ -201,6 +205,7 @@ export default function App() {
         return;
       }
       console.error('Login error:', err);
+      alert("Login failed. If using Microsoft Edge, please ensure popups and third-party cookies are allowed for this site.");
     } finally {
       setLoadingAdmin(false);
     }
@@ -233,9 +238,22 @@ export default function App() {
             <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl border border-neutral-100 relative">
               <h1 
                 onClick={handleAdminClick}
-                className="text-2xl font-bold tracking-tight mb-6 cursor-default select-none"
+                className="text-2xl font-bold tracking-tight mb-6 cursor-default select-none relative"
               >
                 Before we start...
+                {showAdminLoginPrompt && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAdminLogin();
+                    }}
+                    className="absolute -top-12 right-0 bg-neutral-900 text-white text-[10px] px-3 py-1.5 rounded-full font-black uppercase tracking-widest shadow-lg z-50"
+                  >
+                    Admin Login
+                  </motion.button>
+                )}
               </h1>
               <p className="text-neutral-500 mb-6 font-medium">Is there anything you would like to say to me?</p>
               
@@ -278,9 +296,22 @@ export default function App() {
             <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl border border-neutral-100 relative">
               <h1 
                 onClick={handleAdminClick}
-                className="text-3xl font-bold tracking-tight mb-2 cursor-default select-none"
+                className="text-3xl font-bold tracking-tight mb-2 cursor-default select-none relative"
               >
                 Welcome!
+                {showAdminLoginPrompt && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAdminLogin();
+                    }}
+                    className="absolute -top-12 right-0 bg-neutral-900 text-white text-[10px] px-3 py-1.5 rounded-full font-black uppercase tracking-widest shadow-lg z-50"
+                  >
+                    Admin Login
+                  </motion.button>
+                )}
               </h1>
               <p className="text-neutral-500 mb-2">Please enter your name to start the challenge.</p>
               <p className="text-xs text-neutral-400 mb-8 font-medium italic">(Hint: Use your real name or the GOAT name)</p>
