@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Coins, Sparkles, CheckCircle, Send, SkipForward, Lock, LogIn, LogOut, Trash2, Calendar, User as UserIcon, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, fetchSubmissions, Submission } from './lib/firebase';
+import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, fetchSubmissions, Submission, signInWithEmailAndPassword, createUserWithEmailAndPassword } from './lib/firebase';
 
 // --- Types ---
 type Phase = 'PRE_START' | 'NAME_ENTRY' | 'PRANK' | 'SUCCESS' | 'FINAL' | 'SECRET_CHALLENGE' | 'MESSI_SUCCESS' | 'ADMIN';
@@ -199,14 +199,42 @@ export default function App() {
 
   const verifyPassword = async () => {
     const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || "kelson2026";
+    const adminEmail = "admin_dashboard@kelson.com"; // Dedicated admin account
     
     if (adminPassword === correctPassword) {
-      setIsAdminAuthenticated(true);
-      sessionStorage.setItem('isAdminAuth', 'true');
-      setShowPasswordInput(false);
-      setAdminPassword('');
-      setPhase('ADMIN');
-      loadSubmissions();
+      setLoadingAdmin(true);
+      try {
+        // Try to sign in with the admin account
+        try {
+          await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+        } catch (err: any) {
+          // If user doesn't exist, create it (bootstrap)
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+            try {
+              await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
+            } catch (createErr: any) {
+              // If already exists but different provider, we might have an issue, 
+              // but for this app, we'll just try to sign in again or show error
+              console.error("Bootstrap error:", createErr);
+              throw createErr;
+            }
+          } else {
+            throw err;
+          }
+        }
+
+        setIsAdminAuthenticated(true);
+        sessionStorage.setItem('isAdminAuth', 'true');
+        setShowPasswordInput(false);
+        setAdminPassword('');
+        setPhase('ADMIN');
+        loadSubmissions();
+      } catch (err: any) {
+        console.error("Auth error:", err);
+        alert("Authentication failed. Please check your internet connection.");
+      } finally {
+        setLoadingAdmin(false);
+      }
     } else {
       alert("Incorrect password!");
       setAdminPassword('');
@@ -654,10 +682,16 @@ export default function App() {
                   Submission Dashboard
                 </h1>
                 <button 
-                  onClick={() => setPhase('NAME_ENTRY')}
-                  className="px-4 py-2 bg-white rounded-xl font-bold text-sm shadow-sm hover:bg-neutral-50 transition-colors"
+                  onClick={() => {
+                    auth.signOut();
+                    setIsAdminAuthenticated(false);
+                    sessionStorage.removeItem('isAdminAuth');
+                    setPhase('PRE_START');
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl font-bold text-sm shadow-sm hover:bg-neutral-50 transition-colors"
                 >
-                  Exit Dashboard
+                  <LogOut size={16} />
+                  Logout
                 </button>
               </div>
 
