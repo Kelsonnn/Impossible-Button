@@ -1,0 +1,5 @@
+{
+  "name": "The Impossible Button",
+  "description": "A playful prank app with a moving button, a secret bypass, and AI-powered surprises.",
+  "requestFramePermissions": ["camera"]
+}

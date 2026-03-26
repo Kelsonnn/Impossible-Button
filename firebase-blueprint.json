@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "Submission": {
+      "title": "Submission",
+      "description": "A note submitted by a user after the prank.",
+      "type": "object",
+      "properties": {
+        "userName": {
+          "type": "string",
+          "description": "The name entered by the user."
+        },
+        "note": {
+          "type": "string",
+          "description": "The message written by the user."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the note was submitted."
+        },
+        "isMessi": {
+          "type": "boolean",
+          "description": "Whether the user was in the Messi flow."
+        },
+        "preNote": {
+          "type": "string",
+          "description": "The message written by the user before the prank."
+        }
+      },
+      "required": ["userName", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Collection of user notes."
+    }
+  }
+}

@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: submissions
+    // Fields:
+    //   - userName: string (required)
+    //   - note: string (required, max 1000 chars)
+    //   - timestamp: timestamp (required)
+    //   - isMessi: bool (optional)
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+             (request.auth.token.email == "kelsonong2009@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidSubmission(data) {
+      return data.keys().hasAll(['userName', 'note', 'timestamp']) &&
+             data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
+             data.note is string && data.note.size() < 1000 &&
+             data.timestamp is timestamp;
+    }
+
+    match /submissions/{submissionId} {
+      // Anyone can create a submission (even unauthenticated for this prank app, 
+      // but we'll require auth if we want to be safe. 
+      // Actually, let's allow create for everyone so users don't have to log in to prank.)
+      allow create: if isValidSubmission(request.resource.data);
+      
+      // ONLY the admin (you) can read all submissions
+      allow read: if isAdmin();
+      
+      // No one can update or delete
+      allow update, delete: if false;
+    }
+  }
+}
