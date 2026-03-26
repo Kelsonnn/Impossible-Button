@@ -31,6 +31,7 @@ export default function App() {
   const [isMessi, setIsMessi] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
   const [adminClickCount, setAdminClickCount] = useState(0);
+  const adminTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Admin State
   const [user, setUser] = useState<User | null>(null);
@@ -158,14 +159,23 @@ export default function App() {
   };
 
   const handleAdminClick = () => {
+    if (loadingAdmin) return;
+
+    if (adminTimerRef.current) {
+      clearTimeout(adminTimerRef.current);
+    }
+
     const newCount = adminClickCount + 1;
     setAdminClickCount(newCount);
+
     if (newCount >= 5) {
-      handleAdminLogin();
       setAdminClickCount(0);
+      handleAdminLogin();
+    } else {
+      adminTimerRef.current = setTimeout(() => {
+        setAdminClickCount(0);
+      }, 2000);
     }
-    // Reset count after 2 seconds of inactivity
-    setTimeout(() => setAdminClickCount(0), 2000);
   };
 
   const handleAdminLogin = async () => {
@@ -175,6 +185,7 @@ export default function App() {
       return;
     }
 
+    setLoadingAdmin(true);
     try {
       const result = await signInWithPopup(auth, googleProvider);
       if (result.user.email === ADMIN_EMAIL) {
@@ -190,6 +201,8 @@ export default function App() {
         return;
       }
       console.error('Login error:', err);
+    } finally {
+      setLoadingAdmin(false);
     }
   };
 
