@@ -9,7 +9,10 @@ import { getFirestore } from 'firebase-admin/firestore';
 // Initialize Firebase Admin
 console.log(`Initializing Firebase Admin for project: ${firebaseConfig.projectId}`);
 const adminApp = !admin.apps.length 
-  ? admin.initializeApp({ projectId: firebaseConfig.projectId })
+  ? admin.initializeApp({ 
+      credential: admin.credential.applicationDefault(),
+      projectId: firebaseConfig.projectId 
+    })
   : admin.app();
 
 console.log(`Using Firestore database: ${firebaseConfig.firestoreDatabaseId || '(default)'}`);
@@ -58,7 +61,8 @@ async function startServer() {
       res.status(500).json({ 
         error: 'Internal Server Error', 
         message: error instanceof Error ? error.message : String(error),
-        code: (error as any).code
+        code: (error as any).code,
+        details: (error as any).details
       });
     }
   });

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Coins, Sparkles, CheckCircle, Send, SkipForward, Lock, LogIn, LogOut, Trash2, Calendar, User as UserIcon, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, fetchSubmissionsClient, Submission } from './lib/firebase';
+import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, fetchSubmissions, Submission } from './lib/firebase';
 
 // --- Types ---
 type Phase = 'PRE_START' | 'NAME_ENTRY' | 'PRANK' | 'SUCCESS' | 'FINAL' | 'SECRET_CHALLENGE' | 'MESSI_SUCCESS' | 'ADMIN';
@@ -45,7 +45,7 @@ export default function App() {
     const savedPass = sessionStorage.getItem('adminPass');
     if (isAuth && savedPass) {
       setIsAdminAuthenticated(true);
-      loadSubmissions(savedPass);
+      loadSubmissions();
     }
   }, []);
 
@@ -187,20 +187,22 @@ export default function App() {
   const loadSubmissions = async () => {
     setLoadingAdmin(true);
     try {
-      // Ensure user is signed in with Google for Firestore access
-      if (!auth.currentUser) {
-        await signInWithPopup(auth, googleProvider);
-      }
-      
-      const data = await fetchSubmissionsClient();
+      const pass = sessionStorage.getItem('adminPass') || '';
+      const data = await fetchSubmissions(pass);
       setSubmissions(data);
       setPhase('ADMIN');
     } catch (err: any) {
       console.error('Admin Load Error:', err);
       let msg = "Failed to load submissions.";
-      if (err.code === 'permission-denied') {
-        msg += `\n\nAccess Denied: You are logged in as ${auth.currentUser?.email}, which is not the admin account. Please sign out and log in with kelsonong2009@gmail.com.`;
-      } else {
+      try {
+        if (err.message && err.message.startsWith('{')) {
+          const parsed = JSON.parse(err.message);
+          if (parsed.message) msg += `\n\nServer Error: ${parsed.message}`;
+          if (parsed.code === 7) msg += "\n\n(Permission Denied: The server doesn't have access to the database. Please check Firebase roles.)";
+        } else {
+          msg += `\n\nError: ${err.message || String(err)}`;
+        }
+      } catch (e) {
         msg += `\n\nError: ${err.message || String(err)}`;
       }
       alert(msg);
