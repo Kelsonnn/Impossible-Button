@@ -27,6 +27,36 @@ async function startServer() {
   app.use(express.json());
 
   // API Routes
+  app.post('/api/admin/login', async (req, res) => {
+    const { password } = req.body;
+    const trimmedInput = password ? password.trim() : "";
+    const validPasswords = ["Kels0n2026", "kelson2026", "Kelson2026"];
+
+    if (!validPasswords.includes(trimmedInput)) {
+      console.warn(`Unauthorized login attempt with password: "${trimmedInput}"`);
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+      // Generate a custom token for the admin user
+      // We use a fixed UID for the admin
+      const adminUid = 'admin-kelson';
+      const customToken = await admin.auth().createCustomToken(adminUid, {
+        admin: true,
+        email: 'kelsonong2009@gmail.com'
+      });
+      
+      console.log('Successfully generated custom token for admin.');
+      res.json({ token: customToken });
+    } catch (error: any) {
+      console.error('Error generating custom token:', error);
+      res.status(500).json({ 
+        error: 'Internal Server Error', 
+        message: error.message 
+      });
+    }
+  });
+
   app.post('/api/admin/submissions', async (req, res) => {
     const { password } = req.body;
     const trimmedInput = password ? password.trim() : "";

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Coins, Sparkles, CheckCircle, Send, SkipForward, Lock, LogIn, LogOut, Trash2, Calendar, User as UserIcon, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, fetchSubmissions, Submission } from './lib/firebase';
+import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, fetchSubmissionsClient, adminLogin, Submission } from './lib/firebase';
 
 // --- Types ---
 type Phase = 'PRE_START' | 'NAME_ENTRY' | 'PRANK' | 'SUCCESS' | 'FINAL' | 'SECRET_CHALLENGE' | 'MESSI_SUCCESS' | 'ADMIN';
@@ -172,12 +172,22 @@ export default function App() {
     const validPasswords = ["Kels0n2026", "kelson2026", "Kelson2026"];
     
     if (validPasswords.includes(trimmedInput)) {
-      setIsAdminAuthenticated(true);
-      sessionStorage.setItem('isAdminAuth', 'true');
-      sessionStorage.setItem('adminPass', trimmedInput);
-      setShowPasswordInput(false);
-      setAdminPassword('');
-      loadSubmissions();
+      setLoadingAdmin(true);
+      try {
+        await adminLogin(trimmedInput);
+        setIsAdminAuthenticated(true);
+        sessionStorage.setItem('isAdminAuth', 'true');
+        sessionStorage.setItem('adminPass', trimmedInput);
+        setShowPasswordInput(false);
+        setAdminPassword('');
+        loadSubmissions();
+      } catch (err: any) {
+        console.error('Login Error:', err);
+        alert("Login failed: " + (err.message || "Incorrect password"));
+        setAdminPassword('');
+      } finally {
+        setLoadingAdmin(false);
+      }
     } else {
       alert("Incorrect password!");
       setAdminPassword('');
@@ -187,24 +197,27 @@ export default function App() {
   const loadSubmissions = async () => {
     setLoadingAdmin(true);
     try {
-      const pass = sessionStorage.getItem('adminPass') || '';
-      const data = await fetchSubmissions(pass);
+      // If we are not authenticated, try to login with saved password
+      if (!auth.currentUser) {
+        const savedPass = sessionStorage.getItem('adminPass');
+        if (savedPass) {
+          await adminLogin(savedPass);
+        } else {
+          throw new Error("Not authenticated");
+        }
+      }
+      
+      const data = await fetchSubmissionsClient();
       setSubmissions(data);
       setPhase('ADMIN');
     } catch (err: any) {
       console.error('Admin Load Error:', err);
       let msg = "Failed to load submissions.";
-      try {
-        if (err.message && err.message.startsWith('{')) {
-          const parsed = JSON.parse(err.message);
-          if (parsed.message) msg += `\n\nServer Error: ${parsed.message}`;
-          if (parsed.code === 7) msg += "\n\n(Permission Denied: The server doesn't have access to the database. Please check Firebase roles.)";
-        } else {
-          msg += `\n\nError: ${err.message || String(err)}`;
-        }
-      } catch (e) {
-        msg += `\n\nError: ${err.message || String(err)}`;
+      if (err.message === "Not authenticated") {
+        setShowPasswordInput(true);
+        return;
       }
+      msg += `\n\nError: ${err.message || String(err)}`;
       alert(msg);
     } finally {
       setLoadingAdmin(false);

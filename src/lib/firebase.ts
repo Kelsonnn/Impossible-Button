@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -36,9 +36,9 @@ export async function submitNote(userName: string, note: string, isMessi: boolea
   }
 }
 
-export async function fetchSubmissions(password: string): Promise<Submission[]> {
+export async function adminLogin(password: string): Promise<void> {
   try {
-    const response = await fetch('/api/admin/submissions', {
+    const response = await fetch('/api/admin/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -47,19 +47,14 @@ export async function fetchSubmissions(password: string): Promise<Submission[]> 
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(JSON.stringify(errorData));
+      const errorData = await response.json().catch(() => ({ error: 'Unauthorized' }));
+      throw new Error(errorData.error || 'Login failed');
     }
 
-    const data = await response.json();
-    return data.map((sub: any) => ({
-      ...sub,
-      timestamp: sub.timestamp ? {
-        toDate: () => new Date(sub.timestamp.seconds * 1000 + (sub.timestamp.nanoseconds || 0) / 1000000)
-      } : null
-    }));
+    const { token } = await response.json();
+    await signInWithCustomToken(auth, token);
   } catch (error) {
-    console.error('Error fetching submissions via API:', error);
+    console.error('Admin login error:', error);
     throw error;
   }
 }
