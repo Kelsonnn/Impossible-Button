@@ -30,6 +30,7 @@ export default function App() {
   const [ronaldoPos, setRonaldoPos] = useState({ x: 70, y: 50 });
   const [isMessi, setIsMessi] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
+  const [adminClickCount, setAdminClickCount] = useState(0);
   
   // Admin State
   const [user, setUser] = useState<User | null>(null);
@@ -156,6 +157,17 @@ export default function App() {
     setShowRetry(false);
   };
 
+  const handleAdminClick = () => {
+    const newCount = adminClickCount + 1;
+    setAdminClickCount(newCount);
+    if (newCount >= 5) {
+      handleAdminLogin();
+      setAdminClickCount(0);
+    }
+    // Reset count after 2 seconds of inactivity
+    setTimeout(() => setAdminClickCount(0), 2000);
+  };
+
   const handleAdminLogin = async () => {
     // If already logged in as admin, just load submissions
     if (auth.currentUser?.email === ADMIN_EMAIL) {
@@ -206,17 +218,12 @@ export default function App() {
             className="flex flex-col items-center justify-center min-h-screen p-6"
           >
             <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl border border-neutral-100 relative">
-              <button 
-                onClick={handleAdminLogin}
-                className={`absolute top-2 right-2 w-10 h-10 flex items-center justify-center transition-all duration-500 rounded-full ${
-                  user?.email === ADMIN_EMAIL 
-                    ? "text-neutral-900 bg-neutral-100 opacity-100" 
-                    : "text-transparent opacity-0 cursor-default"
-                }`}
+              <h1 
+                onClick={handleAdminClick}
+                className="text-2xl font-bold tracking-tight mb-6 cursor-default select-none"
               >
-                <Lock size={14} />
-              </button>
-              <h1 className="text-2xl font-bold tracking-tight mb-6">Before we start...</h1>
+                Before we start...
+              </h1>
               <p className="text-neutral-500 mb-6 font-medium">Is there anything you would like to say to me?</p>
               
               <textarea
@@ -256,17 +263,12 @@ export default function App() {
             className="flex flex-col items-center justify-center min-h-screen p-6"
           >
             <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl border border-neutral-100 relative">
-              <button 
-                onClick={handleAdminLogin}
-                className={`absolute top-2 right-2 w-10 h-10 flex items-center justify-center transition-all duration-500 rounded-full ${
-                  user?.email === ADMIN_EMAIL 
-                    ? "text-neutral-900 bg-neutral-100 opacity-100" 
-                    : "text-transparent opacity-0 cursor-default"
-                }`}
+              <h1 
+                onClick={handleAdminClick}
+                className="text-3xl font-bold tracking-tight mb-2 cursor-default select-none"
               >
-                <Lock size={14} />
-              </button>
-              <h1 className="text-3xl font-bold tracking-tight mb-2">Welcome!</h1>
+                Welcome!
+              </h1>
               <p className="text-neutral-500 mb-2">Please enter your name to start the challenge.</p>
               <p className="text-xs text-neutral-400 mb-8 font-medium italic">(Hint: Use your real name or the GOAT name)</p>
               <form
