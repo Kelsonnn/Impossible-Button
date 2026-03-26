@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Coins, Sparkles, CheckCircle, Send, SkipForward, Lock, LogIn, LogOut, Trash2, Calendar, User as UserIcon, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, fetchSubmissions, Submission, signInWithEmailAndPassword, createUserWithEmailAndPassword } from './lib/firebase';
+import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, Submission } from './lib/firebase';
 
 // --- Types ---
 type Phase = 'PRE_START' | 'NAME_ENTRY' | 'PRANK' | 'SUCCESS' | 'FINAL' | 'SECRET_CHALLENGE' | 'MESSI_SUCCESS' | 'ADMIN';
@@ -44,9 +44,10 @@ export default function App() {
   useEffect(() => {
     // Check if previously authenticated in this session
     const isAuth = sessionStorage.getItem('isAdminAuth') === 'true';
-    if (isAuth) {
+    const savedPassword = sessionStorage.getItem('adminPassword');
+    if (isAuth && savedPassword) {
       setIsAdminAuthenticated(true);
-      loadSubmissions();
+      loadSubmissions(savedPassword);
     }
   }, []);
 
@@ -199,39 +200,35 @@ export default function App() {
 
   const verifyPassword = async () => {
     const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || "kelson2026";
-    const adminEmail = "admin_dashboard@kelson.com"; // Dedicated admin account
     
     if (adminPassword === correctPassword) {
       setLoadingAdmin(true);
       try {
-        // Try to sign in with the admin account
-        try {
-          await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-        } catch (err: any) {
-          // If user doesn't exist, create it (bootstrap)
-          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-            try {
-              await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
-            } catch (createErr: any) {
-              // If already exists but different provider, we might have an issue, 
-              // but for this app, we'll just try to sign in again or show error
-              console.error("Bootstrap error:", createErr);
-              throw createErr;
-            }
-          } else {
-            throw err;
-          }
-        }
+        // Fetch submissions directly to verify
+        const response = await fetch('/api/admin/submissions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ password: adminPassword }),
+        });
 
-        setIsAdminAuthenticated(true);
-        sessionStorage.setItem('isAdminAuth', 'true');
-        setShowPasswordInput(false);
-        setAdminPassword('');
-        setPhase('ADMIN');
-        loadSubmissions();
+        if (response.ok) {
+          const data = await response.json();
+          setSubmissions(data);
+          setIsAdminAuthenticated(true);
+          sessionStorage.setItem('isAdminAuth', 'true');
+          sessionStorage.setItem('adminPassword', adminPassword); // Store password for session refreshes
+          setShowPasswordInput(false);
+          setAdminPassword('');
+          setPhase('ADMIN');
+        } else {
+          alert("Incorrect password!");
+          setAdminPassword('');
+        }
       } catch (err: any) {
         console.error("Auth error:", err);
-        alert("Authentication failed. Please check your internet connection.");
+        alert("Server error. Please try again.");
       } finally {
         setLoadingAdmin(false);
       }
@@ -241,14 +238,31 @@ export default function App() {
     }
   };
 
-  const loadSubmissions = async () => {
+  const loadSubmissions = async (password?: string) => {
     setLoadingAdmin(true);
     try {
-      const data = await fetchSubmissions();
+      const response = await fetch('/api/admin/submissions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: password || sessionStorage.getItem('adminPassword') || adminPassword }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Unauthorized');
+      }
+
+      const data = await response.json();
       setSubmissions(data);
       setPhase('ADMIN');
     } catch (err) {
-      console.error(err);
+      console.error("Error loading submissions:", err);
+      // If it fails, maybe the session expired or password was wrong
+      setIsAdminAuthenticated(false);
+      sessionStorage.removeItem('isAdminAuth');
+      sessionStorage.removeItem('adminPassword');
+      setPhase('PRE_START');
     } finally {
       setLoadingAdmin(false);
     }
@@ -683,9 +697,9 @@ export default function App() {
                 </h1>
                 <button 
                   onClick={() => {
-                    auth.signOut();
                     setIsAdminAuthenticated(false);
                     sessionStorage.removeItem('isAdminAuth');
+                    sessionStorage.removeItem('adminPassword');
                     setPhase('PRE_START');
                   }}
                   className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl font-bold text-sm shadow-sm hover:bg-neutral-50 transition-colors"
