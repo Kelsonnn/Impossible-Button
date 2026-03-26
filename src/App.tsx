@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Coins, Sparkles, CheckCircle, Send, SkipForward, Lock, LogIn, LogOut, Trash2, Calendar, User as UserIcon, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, Submission } from './lib/firebase';
+import { auth, db, googleProvider, signInWithPopup, onAuthStateChanged, User, submitNote, fetchSubmissions, Submission } from './lib/firebase';
 
 // --- Types ---
 type Phase = 'PRE_START' | 'NAME_ENTRY' | 'PRANK' | 'SUCCESS' | 'FINAL' | 'SECRET_CHALLENGE' | 'MESSI_SUCCESS' | 'ADMIN';
@@ -44,10 +44,9 @@ export default function App() {
   useEffect(() => {
     // Check if previously authenticated in this session
     const isAuth = sessionStorage.getItem('isAdminAuth') === 'true';
-    const savedPassword = sessionStorage.getItem('adminPassword');
-    if (isAuth && savedPassword) {
+    if (isAuth) {
       setIsAdminAuthenticated(true);
-      loadSubmissions(savedPassword);
+      loadSubmissions();
     }
   }, []);
 
@@ -202,67 +201,26 @@ export default function App() {
     const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || "kelson2026";
     
     if (adminPassword === correctPassword) {
-      setLoadingAdmin(true);
-      try {
-        // Fetch submissions directly to verify
-        const response = await fetch('/api/admin/submissions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ password: adminPassword }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setSubmissions(data);
-          setIsAdminAuthenticated(true);
-          sessionStorage.setItem('isAdminAuth', 'true');
-          sessionStorage.setItem('adminPassword', adminPassword); // Store password for session refreshes
-          setShowPasswordInput(false);
-          setAdminPassword('');
-          setPhase('ADMIN');
-        } else {
-          alert("Incorrect password!");
-          setAdminPassword('');
-        }
-      } catch (err: any) {
-        console.error("Auth error:", err);
-        alert("Server error. Please try again.");
-      } finally {
-        setLoadingAdmin(false);
-      }
+      setIsAdminAuthenticated(true);
+      sessionStorage.setItem('isAdminAuth', 'true');
+      setShowPasswordInput(false);
+      setAdminPassword('');
+      setPhase('ADMIN');
+      loadSubmissions();
     } else {
       alert("Incorrect password!");
       setAdminPassword('');
     }
   };
 
-  const loadSubmissions = async (password?: string) => {
+  const loadSubmissions = async () => {
     setLoadingAdmin(true);
     try {
-      const response = await fetch('/api/admin/submissions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ password: password || sessionStorage.getItem('adminPassword') || adminPassword }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Unauthorized');
-      }
-
-      const data = await response.json();
+      const data = await fetchSubmissions();
       setSubmissions(data);
       setPhase('ADMIN');
     } catch (err) {
-      console.error("Error loading submissions:", err);
-      // If it fails, maybe the session expired or password was wrong
-      setIsAdminAuthenticated(false);
-      sessionStorage.removeItem('isAdminAuth');
-      sessionStorage.removeItem('adminPassword');
-      setPhase('PRE_START');
+      console.error(err);
     } finally {
       setLoadingAdmin(false);
     }
@@ -696,16 +654,10 @@ export default function App() {
                   Submission Dashboard
                 </h1>
                 <button 
-                  onClick={() => {
-                    setIsAdminAuthenticated(false);
-                    sessionStorage.removeItem('isAdminAuth');
-                    sessionStorage.removeItem('adminPassword');
-                    setPhase('PRE_START');
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl font-bold text-sm shadow-sm hover:bg-neutral-50 transition-colors"
+                  onClick={() => setPhase('NAME_ENTRY')}
+                  className="px-4 py-2 bg-white rounded-xl font-bold text-sm shadow-sm hover:bg-neutral-50 transition-colors"
                 >
-                  <LogOut size={16} />
-                  Logout
+                  Exit Dashboard
                 </button>
               </div>
 

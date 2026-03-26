@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore, collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase
@@ -32,6 +32,20 @@ export async function submitNote(userName: string, note: string, isMessi: boolea
     });
   } catch (error) {
     console.error('Error submitting note:', error);
+    throw error;
+  }
+}
+
+export async function fetchSubmissions(): Promise<Submission[]> {
+  try {
+    const q = query(collection(db, 'submissions'), orderBy('timestamp', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Submission));
+  } catch (error) {
+    console.error('Error fetching submissions:', error);
     throw error;
   }
 }

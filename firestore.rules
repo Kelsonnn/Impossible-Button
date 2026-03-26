@@ -18,16 +18,14 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-             (request.auth.token.email == "kelsonong2009@gmail.com" || 
-              request.auth.token.email == "admin_dashboard@kelson.com");
+             (request.auth.token.email == "kelsonong2009@gmail.com" && request.auth.token.email_verified == true);
     }
 
     function isValidSubmission(data) {
       return data.keys().hasAll(['userName', 'note', 'timestamp']) &&
              data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
              data.note is string && data.note.size() < 1000 &&
-             data.timestamp is timestamp &&
-             (!('preNote' in data) || (data.preNote is string && data.preNote.size() < 1000));
+             data.timestamp is timestamp;
     }
 
     match /submissions/{submissionId} {
