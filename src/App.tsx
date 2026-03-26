@@ -31,9 +31,6 @@ export default function App() {
   const [ronaldoPos, setRonaldoPos] = useState({ x: 70, y: 50 });
   const [isMessi, setIsMessi] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
-  const [adminClickCount, setAdminClickCount] = useState(0);
-  const [showAdminLoginPrompt, setShowAdminLoginPrompt] = useState(false);
-  const adminTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Admin State
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
@@ -65,6 +62,11 @@ export default function App() {
   }, [phase, isAnswer]);
 
   const handleNameSubmit = (name: string) => {
+    if (name === "Kelson Ong Ke Sheng") {
+      setUserName(name);
+      setShowPasswordInput(true);
+      return;
+    }
     const lowerName = name.toLowerCase();
     const isSpecial = ANSWER_NAMES.some(n => lowerName.includes(n));
     const isMessiUser = lowerName.includes('lionel messi') || lowerName.includes('messi');
@@ -165,52 +167,16 @@ export default function App() {
     setShowRetry(false);
   };
 
-  const handleAdminClick = () => {
-    if (loadingAdmin || showAdminLoginPrompt) return;
-
-    if (adminTimerRef.current) {
-      clearTimeout(adminTimerRef.current);
-    }
-
-    const newCount = adminClickCount + 1;
-    setAdminClickCount(newCount);
-
-    if (newCount >= 5) {
-      setAdminClickCount(0);
-      setShowAdminLoginPrompt(true);
-      // Automatically hide prompt after 5 seconds if not clicked
-      setTimeout(() => setShowAdminLoginPrompt(false), 5000);
-    } else {
-      adminTimerRef.current = setTimeout(() => {
-        setAdminClickCount(0);
-      }, 2000);
-    }
-  };
-
-  const handleAdminLogin = () => {
-    // If already authenticated, just load submissions
-    if (isAdminAuthenticated) {
-      const savedPass = sessionStorage.getItem('adminPass');
-      if (savedPass) {
-        setPhase('ADMIN');
-        loadSubmissions(savedPass);
-        return;
-      }
-    }
-
-    setShowPasswordInput(true);
-    setShowAdminLoginPrompt(false);
-  };
-
   const verifyPassword = async () => {
-    const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || "kelson2026";
+    const trimmedInput = adminPassword.trim();
+    const validPasswords = ["Kels0n2026", "kelson2026", "Kelson2026"];
     
-    if (adminPassword === correctPassword) {
+    if (validPasswords.includes(trimmedInput)) {
       setIsAdminAuthenticated(true);
       sessionStorage.setItem('isAdminAuth', 'true');
-      sessionStorage.setItem('adminPass', adminPassword);
+      sessionStorage.setItem('adminPass', trimmedInput);
       setShowPasswordInput(false);
-      const pass = adminPassword;
+      const pass = trimmedInput;
       setAdminPassword('');
       setPhase('ADMIN');
       loadSubmissions(pass);
@@ -236,16 +202,19 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-50 font-sans text-neutral-900 overflow-hidden">
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {showPasswordInput && (
           <motion.div
+            key="password-modal"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
               className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl"
             >
               <h2 className="text-xl font-bold mb-4">Admin Access</h2>
@@ -279,6 +248,9 @@ export default function App() {
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      <AnimatePresence mode="wait">
 
         {phase === 'PRE_START' && (
           <motion.div
@@ -290,23 +262,9 @@ export default function App() {
           >
             <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl border border-neutral-100 relative">
               <h1 
-                onClick={handleAdminClick}
                 className="text-2xl font-bold tracking-tight mb-6 cursor-default select-none relative"
               >
                 Before we start...
-                {showAdminLoginPrompt && (
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAdminLogin();
-                    }}
-                    className="absolute -top-12 right-0 bg-neutral-900 text-white text-[10px] px-3 py-1.5 rounded-full font-black uppercase tracking-widest shadow-lg z-50"
-                  >
-                    Admin Login
-                  </motion.button>
-                )}
               </h1>
               <p className="text-neutral-500 mb-6 font-medium">Is there anything you would like to say to me?</p>
               
@@ -348,23 +306,9 @@ export default function App() {
           >
             <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl border border-neutral-100 relative">
               <h1 
-                onClick={handleAdminClick}
                 className="text-3xl font-bold tracking-tight mb-2 cursor-default select-none relative"
               >
                 Welcome!
-                {showAdminLoginPrompt && (
-                  <motion.button
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAdminLogin();
-                    }}
-                    className="absolute -top-12 right-0 bg-neutral-900 text-white text-[10px] px-3 py-1.5 rounded-full font-black uppercase tracking-widest shadow-lg z-50"
-                  >
-                    Admin Login
-                  </motion.button>
-                )}
               </h1>
               <p className="text-neutral-500 mb-2">Please enter your name to start the challenge.</p>
               <p className="text-xs text-neutral-400 mb-8 font-medium italic">(Hint: Use your real name or the GOAT name)</p>

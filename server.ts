@@ -24,9 +24,10 @@ async function startServer() {
   // API Routes
   app.post('/api/admin/submissions', async (req, res) => {
     const { password } = req.body;
-    const correctPassword = process.env.VITE_ADMIN_PASSWORD || "kelson2026";
+    const trimmedInput = password ? password.trim() : "";
+    const validPasswords = ["Kels0n2026", "kelson2026", "Kelson2026"];
 
-    if (password !== correctPassword) {
+    if (!validPasswords.includes(trimmedInput)) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
