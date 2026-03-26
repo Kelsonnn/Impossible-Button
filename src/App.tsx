@@ -35,15 +35,19 @@ export default function App() {
   const adminTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Admin State
-  const [user, setUser] = useState<User | null>(null);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loadingAdmin, setLoadingAdmin] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
-    return () => unsubscribe();
+    // Check if previously authenticated in this session
+    const isAuth = sessionStorage.getItem('isAdminAuth') === 'true';
+    if (isAuth) {
+      setIsAdminAuthenticated(true);
+      loadSubmissions();
+    }
   }, []);
 
   useEffect(() => {
@@ -181,33 +185,31 @@ export default function App() {
     }
   };
 
-  const handleAdminLogin = async () => {
-    // If already logged in as admin, just load submissions
-    if (auth.currentUser?.email === ADMIN_EMAIL) {
+  const handleAdminLogin = () => {
+    // If already authenticated, just load submissions
+    if (isAdminAuthenticated) {
+      setPhase('ADMIN');
       loadSubmissions();
       return;
     }
 
-    setLoadingAdmin(true);
+    setShowPasswordInput(true);
     setShowAdminLoginPrompt(false);
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      if (result.user.email === ADMIN_EMAIL) {
-        loadSubmissions();
-      } else {
-        alert("Access Denied: You are not the admin.");
-        await auth.signOut();
-      }
-    } catch (err: any) {
-      // Gracefully handle user cancellation
-      if (err.code === 'auth/user-cancelled' || err.code === 'auth/popup-closed-by-user') {
-        console.log('Login cancelled by user.');
-        return;
-      }
-      console.error('Login error:', err);
-      alert("Login failed. If using Microsoft Edge, please ensure popups and third-party cookies are allowed for this site.");
-    } finally {
-      setLoadingAdmin(false);
+  };
+
+  const verifyPassword = async () => {
+    const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || "kelson2026";
+    
+    if (adminPassword === correctPassword) {
+      setIsAdminAuthenticated(true);
+      sessionStorage.setItem('isAdminAuth', 'true');
+      setShowPasswordInput(false);
+      setAdminPassword('');
+      setPhase('ADMIN');
+      loadSubmissions();
+    } else {
+      alert("Incorrect password!");
+      setAdminPassword('');
     }
   };
 
@@ -227,6 +229,49 @@ export default function App() {
   return (
     <div className="min-h-screen bg-neutral-50 font-sans text-neutral-900 overflow-hidden">
       <AnimatePresence mode="wait">
+        {showPasswordInput && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl"
+            >
+              <h2 className="text-xl font-bold mb-4">Admin Access</h2>
+              <p className="text-neutral-500 text-sm mb-6">Please enter your secret password to view submissions.</p>
+              <input
+                type="password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && verifyPassword()}
+                placeholder="Enter password..."
+                className="w-full px-4 py-3 rounded-xl bg-neutral-100 border-none focus:ring-2 focus:ring-neutral-900 transition-all outline-none mb-6"
+                autoFocus
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={verifyPassword}
+                  className="flex-1 py-3 bg-neutral-900 text-white rounded-xl font-bold hover:bg-neutral-800 transition-colors"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPasswordInput(false);
+                    setAdminPassword('');
+                  }}
+                  className="px-6 py-3 bg-neutral-100 text-neutral-500 rounded-xl font-bold hover:bg-neutral-200 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {phase === 'PRE_START' && (
           <motion.div
             key="pre-start"
