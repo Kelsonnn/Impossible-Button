@@ -7,10 +7,12 @@ import firebaseConfig from './firebase-applet-config.json' assert { type: 'json'
 import { getFirestore } from 'firebase-admin/firestore';
 
 // Initialize Firebase Admin
+console.log(`Initializing Firebase Admin for project: ${firebaseConfig.projectId}`);
 const adminApp = !admin.apps.length 
   ? admin.initializeApp({ projectId: firebaseConfig.projectId })
   : admin.app();
 
+console.log(`Using Firestore database: ${firebaseConfig.firestoreDatabaseId || '(default)'}`);
 const db = firebaseConfig.firestoreDatabaseId 
   ? getFirestore(adminApp, firebaseConfig.firestoreDatabaseId)
   : getFirestore(adminApp);
@@ -28,24 +30,36 @@ async function startServer() {
     const validPasswords = ["Kels0n2026", "kelson2026", "Kelson2026"];
 
     if (!validPasswords.includes(trimmedInput)) {
+      console.warn(`Unauthorized access attempt with password: "${trimmedInput}"`);
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
     try {
+      console.log('Fetching submissions from Firestore collection "submissions"...');
       const snapshot = await db.collection('submissions').orderBy('timestamp', 'desc').get();
-      const submissions = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp ? {
-          toDate: () => doc.data().timestamp.toDate(),
-          seconds: doc.data().timestamp.seconds,
-          nanoseconds: doc.data().timestamp.nanoseconds
-        } : null
-      }));
+      console.log(`Successfully fetched ${snapshot.size} submissions.`);
+      
+      const submissions = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // Extract timestamp fields manually to ensure they are JSON-serializable
+        const ts = data.timestamp;
+        return {
+          id: doc.id,
+          ...data,
+          timestamp: ts ? {
+            seconds: ts.seconds,
+            nanoseconds: ts.nanoseconds
+          } : null
+        };
+      });
       res.json(submissions);
     } catch (error) {
-      console.error('Error fetching submissions:', error);
-      res.status(500).json({ error: 'Internal Server Error' });
+      console.error('CRITICAL: Error fetching submissions from Firestore:', error);
+      res.status(500).json({ 
+        error: 'Internal Server Error', 
+        message: error instanceof Error ? error.message : String(error),
+        code: (error as any).code
+      });
     }
   });
 

@@ -192,9 +192,21 @@ export default function App() {
       const data = await fetchSubmissions(password);
       setSubmissions(data);
       setPhase('ADMIN');
-    } catch (err) {
-      console.error(err);
-      alert("Failed to load submissions. Please try again.");
+    } catch (err: any) {
+      console.error('Admin Load Error:', err);
+      // Try to extract a more helpful message from the error
+      let errorMsg = "Failed to load submissions.";
+      try {
+        if (err.message && err.message.startsWith('{')) {
+          const parsed = JSON.parse(err.message);
+          if (parsed.message) errorMsg += `\n\nServer Error: ${parsed.message}`;
+        } else if (err.message) {
+          errorMsg += `\n\n${err.message}`;
+        }
+      } catch (e) {
+        // Fallback to generic message
+      }
+      alert(errorMsg + "\n\nPlease try again.");
     } finally {
       setLoadingAdmin(false);
     }

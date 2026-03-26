@@ -47,7 +47,8 @@ export async function fetchSubmissions(password: string): Promise<Submission[]> 
     });
 
     if (!response.ok) {
-      throw new Error('Failed to fetch submissions');
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(JSON.stringify(errorData));
     }
 
     const data = await response.json();
